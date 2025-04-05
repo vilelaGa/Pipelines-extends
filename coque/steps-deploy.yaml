@@ -1,0 +1,37 @@
+# steps-deploy.yaml
+steps:
+  - template: download/files.yaml@pipelines-templates
+    parameters:
+      artifactName: 'WEB'
+
+  - template: download/files.yaml@pipelines-templates
+    parameters:
+      artifactName: 'WS'
+
+  - ${{ if startsWith(variables['Build.SourceBranch'], 'refs/heads/master') }}:
+    - template: mapeamento/create.yaml@pipelines-templates
+      parameters:
+        unidadeRede: 'ip'
+
+    - template: publish/publish-iis.yaml@pipelines-templates
+      parameters:
+        SourceFolder: '$(System.ArtifactsDirectory)/web'
+        TargetFolder: 'n:\WebCoqueGabriel'
+        #TargetFolder: 'n:\Homologacao\Aplicacoes\mes-coque'
+        Ambiente: 'Homolog'
+        Name: 'web'
+
+    - template: mapeamento/remove.yaml@pipelines-templates
+
+    - template: mapeamento/create.yaml@pipelines-templates
+      parameters:
+        unidadeRede: 'ip'
+
+    - template: publish/publish-iis.yaml@pipelines-templates
+      parameters:
+        SourceFolder: '$(System.ArtifactsDirectory)/ws'
+        TargetFolder: 'n:\WsCoqueGabriel'
+        Ambiente: 'Homolog'
+        Name: 'ws'
+
+    - template: mapeamento/remove.yaml@pipelines-templates
