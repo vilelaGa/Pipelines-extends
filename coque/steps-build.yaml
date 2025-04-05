@@ -1,0 +1,86 @@
+steps:
+  - checkout: self
+    persistCredentials: true
+    fetchDepth: 0
+
+  #- script: git fetch --unshallow
+  #  displayName: 'Convert Shallow Clone to Full Clone'
+
+  - task: NuGetCommand@2
+    displayName: 'NuGet restore'
+    inputs:
+      restoreSolution: '$(solution)'
+      vstsFeed: 'dd693893-eed9-4af5-ad3c-f293f4c3e59a'
+      includeNuGetOrg: false
+
+  - task: gittools.gitversion.gitversion-task.GitVersion@5
+    displayName: 'GitVersion'
+    inputs:
+      runtime: full
+      updateAssemblyInfo: true
+
+  - task: VSBuild@1
+    displayName: 'Build solution MES Coque'
+    inputs:
+      solution: 'source/MES/TIIndustrial.CSN.Mes.Coque/TIIndustrial.CSN.Mes.Coque.sln'
+      vsVersion: 16.0
+      msbuildArgs: '/p:DeployOnBuild=true /p:SkipInvalidConfigurations=true /p:OutDir=$(Build.BinariesDirectory) /p:TransformConfigFiles=true /p:UseWPP_CopyWebApplication=true'
+      platform: '$(platform)'
+      configuration: '$(configuration)'
+      clean: true
+
+  - task: VSTest@2
+    displayName: 'Test Assemblies'
+    inputs:
+      testAssemblyVer2: |
+        **\$(configuration)\*test*.dll
+        !**\obj\**
+      platform: '$(platform)'
+      configuration: '$(configuration)'
+      diagnosticsEnabled: true
+
+  - task: CopyFiles@2
+    displayName: 'Copy Web Published WEB'
+    inputs:
+      SourceFolder: '$(Build.BinariesDirectory)/_PublishedWebsites/TIIndustrial.CSN.Mes.Coque.Web'
+      Contents: '**/*'
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/WEB'
+      OverWrite: true
+    enabled: true
+    continueOnError: true
+
+  - task: CopyFiles@2
+    displayName: 'Copy Web Published WS'
+    inputs:
+      SourceFolder: '$(Build.BinariesDirectory)/_PublishedWebsites'
+      Contents: |
+        TIIndustrial.CSN.Mes.Coque.Business/**
+        TIIndustrial.CSN.Mes.Coque.Data/**
+      TargetFolder: '$(Build.ArtifactStagingDirectory)/WS'
+      OverWrite: true
+    enabled: true
+    continueOnError: true
+
+  - task: PublishSymbols@2
+    displayName: 'Publish symbols path'
+    inputs:
+      SearchPattern: '**\bin\**\*.pdb'
+      PublishSymbols: false
+    enabled: true
+    continueOnError: true
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact WEB'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/WEB'
+      ArtifactName: '$(ArtifactNameWEB)'
+    enabled: true
+    condition: succeededOrFailed()
+
+  - task: PublishBuildArtifacts@1
+    displayName: 'Publish Artifact WS'
+    inputs:
+      PathtoPublish: '$(Build.ArtifactStagingDirectory)/WS'
+      ArtifactName: '$(ArtifactNameWS)'
+    enabled: true
+    condition: succeededOrFailed()

@@ -1,0 +1,58 @@
+##################################
+# PIPELINES RESOURCES REPOSITORIES #
+##################################
+
+
+resources:
+  repositories:
+    - repository: pipelines-templates
+      type: git
+      name: 'Testes Gabriel/pipelines-templates'  
+      ref: 'refs/heads/master'  
+ 
+variables:
+  solution: 'source/MES/**/*.sln'
+  configuration: 'release'
+  platform: 'any cpu'
+  ArtifactNameWEB: 'WEB'
+  ArtifactNameWS: 'WS'
+ 
+ 
+#################
+# CI APPS        #
+#################
+
+stages:
+- stage: BuildAndPush
+  displayName: 'CI - Build and Publish'
+  pool:
+    name: 'Default'
+  jobs:
+    - job: BuildAndPublishProd
+      displayName: 'Build and Publish'
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+      steps:
+         - template: steps-build.yaml
+
+
+#################
+# CD - Deploy    #
+#################
+
+
+- stage: Deploy
+  displayName: 'CD - Deploy'
+  dependsOn: BuildAndPush
+  condition: succeeded()
+  pool:
+    name: 'Default'
+  jobs:
+    - deployment: 'DeployMESCoque'
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))
+      displayName: 'Deploy Application'
+      environment: 'Deploy'
+      strategy:
+        runOnce:
+          deploy:
+            steps:
+              - template: steps-deploy.yaml
